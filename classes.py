@@ -12,30 +12,31 @@ class Grid:
     def __init__(self, window):
         self.data = {}
         self.window = window
+        self.to_remove_before_reload = []
+        self.to_add_before_reload = []
         self.all_timers = []
 
     def add_element(self, position, element):
         if not isinstance(element, GridObject):
             raise TypeError('Element must be a GridObject')
-        self.data[tuple(position)] = element
+        self.to_add_before_reload.append((tuple(position), element))
 
     def move_element(self, position, element, new_pos):
         position = tuple(position)
         if position not in self.data or self.data[position] != element:
             raise TypeError(f'{ position } is empty or is not { element }')
-        self.data[tuple(new_pos)] = self.data[position]
-        del self.data[position]
+        self.to_add_before_reload.append((tuple(new_pos), element))
+        self.to_remove_before_reload.append(position)
         self.reload()
 
     def clear_position(self, position):
         position = tuple(position)
         if position in self.data:
-            del self.data[position]
-            self.reload()
+            self.to_remove_before_reload.append(position)
 
     def clear_positions(self, *positions):
-        for pos in positions:
-            self.clear_position(pos)
+       for pos in positions:
+           self.clear_position(pos)
 
     def get_element(self, position):
         position = tuple(position)
@@ -50,6 +51,14 @@ class Grid:
 
     def reload(self):
         self.window.fill(constants.background_color)
+
+        for pos in self.to_remove_before_reload:
+            del self.data[pos]
+        self.to_remove_before_reload = []
+        for el in self.to_add_before_reload:
+            self.data[el[0]] = el[1]
+        self.to_add_before_reload = []
+
         for i in self.data.values():
             i.display()
 
