@@ -54,10 +54,38 @@ class Grid:
             i.display()
 
 
+class Level:
+    def __init__(self, window, grid, file):
+        self.window = window
+        self.grid = grid
+
+        self.players = []
+        self.walls = []
+        self.destroyable_walls = []
+        self.goals = []
+
+        with open(file) as f:
+            self.level_grid = [ list(l) for l in f.read().split('\n') ]
+
+    def render(self):
+        matching_dict = {
+            'a': ('players', Player),
+            'b': ('walls', Wall),
+            'c': ('destroyable_walls', DestroyableWall),
+            'd': ('goals', Goal),
+        }
+        for l in range(0, 15):
+            for c in range(0, 15):
+                cell = self.level_grid[l][c]
+                class_classname = matching_dict.get(cell)
+                if class_classname is not None:
+                    getattr(self, class_classname[0]).append(class_classname[1](self.window, self.grid, [c, l]))
+
+
 class GridObject:
     def __init__(self, window, grid, pos):
         el = grid.get_element(pos)
-        if isinstance(el, Wall) and not el.destroyable:
+        if isinstance(el, Wall) and not el.deletable:
             self.accepted = False
             return
         else:
@@ -74,12 +102,22 @@ class GridObject:
         self.rect.move_ip(*pos)
         self.window = window
         window.blit(self.image, self.rect)
+        self.deletable = True
 
     def display(self):
         self.window.blit(self.image, self.rect)
 
     def delete(self):
         pass
+
+
+class Goal(GridObject):
+    def __init__(self, window, grid, pos):
+        super().__init__(window, grid, pos)
+        self.deletable = False
+
+    def get_image(self):
+        return constants.goal_image
 
 
 class Player(GridObject):
@@ -95,8 +133,15 @@ class Player(GridObject):
             (self.gridpos[1] + move_y) * constants.sprite_size >= constants.dimensions[1]):
             return
         new_pos = [self.gridpos[0] + move_x, self.gridpos[1] + move_y]
-        if self.grid.get_element(new_pos) \
-            is not None:
+        el = self.grid.get_element(new_pos)
+        if isinstance(el, Goal):
+            self.rect.move_ip(move_x * constants.sprite_size, move_y * constants.sprite_size)
+            self.display()
+            return
+        elif isinstance(el, Fire):
+            self.on_explode()
+            return
+        elif el is not None:
             return
 
         self.rect.move_ip(move_x * constants.sprite_size, move_y * constants.sprite_size)
@@ -113,7 +158,7 @@ class Player(GridObject):
     def get_image(self):
         return constants.player_image
 
-    def delete(self):
+    def on_explode(self):
         self.grid.cancel_timers()
         self.grid.data = {}
         self.grid.reload()
@@ -141,14 +186,15 @@ class Bomb(GridObject):
             lambda i: [self.gridpos[0], self.gridpos[1] + i],
             lambda i: [self.gridpos[0], self.gridpos[1] - i]
         ]
-        not_to_fire_directions = []
-        for i in range(1, constants.bomb_explosion_scope):
-            for d in enumerate(directions):
-                p = d[1](i)
+        for d in directions:
+            for i in range(1, constants.bomb_explosion_scope):
+                p = d(i)
                 el = self.grid.get_element(p)
-                if isinstance(el, Wall) and not el.destroyable:
-                    not_to_fire_directions.append(d[0])
-                elif not d[0] in not_to_fire_directions:
+                if isinstance(el, Wall):
+                    if el.deletable:
+                        Fire(self.window, self.grid, p)
+                    break
+                else:
                     Fire(self.window, self.grid, p)
         timer = Timer(constants.bomb_explosion_duration, self.delete)
         self.grid.all_timers.append(timer)
@@ -160,11 +206,16 @@ class Bomb(GridObject):
 
 class Fire(GridObject):
     def __init__(self, window, grid, pos):
-        super().__init__(window, grid, pos)
-        if self.accepted:
-            timer = Timer(constants.bomb_explosion_duration, self.delete)
-            grid.all_timers.append(timer)
-            timer.start()
+        el = grid.get_element(pos)
+        if el and el.deletable == False:
+            if hasattr(el, 'on_explode'):
+                el.on_explode()
+        else:
+            super().__init__(window, grid, pos)
+            if self.accepted:
+                timer = Timer(constants.bomb_explosion_duration, self.delete)
+                grid.all_timers.append(timer)
+                timer.start()
 
     def get_image(self):
         return constants.fire_image
@@ -176,15 +227,16 @@ class Fire(GridObject):
 class Wall(GridObject):
     def __init__(self, window, grid, pos):
         super().__init__(window, grid, pos)
-        self.destroyable = False
+        self.deletable = False
 
     def get_image(self):
         return constants.wall_image
 
+
 class DestroyableWall(Wall):
     def __init__(self, window, grid, pos):
         super().__init__(window, grid, pos)
-        self.destroyable = True
+        self.deletable = True
     
     def get_image(self):
         return constants.destroyable_wall_image

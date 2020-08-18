@@ -18,7 +18,9 @@ pygame.time.Clock().tick(30)
 
 grid = classes.Grid(window)
 
-player = classes.Player(window, grid)
+level = classes.Level(window, grid, 'level.txt')
+level.render()
+player = level.players[0]
 
 pygame.key.set_repeat(400, 30)
 

@@ -3,7 +3,7 @@
 DEBUG = True
 
 title = 'Bomberman'
-dimensions = [450, 450]
+dimensions = [750, 750]
 background_color = [128, 128, 128]
 
 sprite_size = 50
@@ -13,6 +13,7 @@ bomb_image = 'images/bomb.png'
 fire_image = 'images/fire.png'
 wall_image = 'images/wall.png'
 destroyable_wall_image = 'images/destroyable_wall.png'
+goal_image = 'images/goal.png'
 game_over_image = 'images/game_over.png'
 
 bomb_explosion_delay = 2.0
