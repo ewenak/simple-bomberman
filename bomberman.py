@@ -34,7 +34,7 @@ while continue_:
             grid.cancel_timers()
             pygame.quit()
             break
-        elif event.type == l.KEYDOWN:
+        elif event.type == l.KEYDOWN and player.continue_:
             if event.key == l.K_RIGHT:
                 player.move(1, 0)
             elif event.key == l.K_LEFT:
@@ -44,7 +44,7 @@ while continue_:
             elif event.key == l.K_DOWN:
                 player.move(0, 1)
             elif event.key == l.K_SPACE:
-                player.set_bomb()
+                player.put_bomb()
             elif event.key == l.K_p:
                 import pdb; pdb.set_trace()
     if continue_ and player.continue_:

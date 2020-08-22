@@ -10,6 +10,9 @@ from threading import Timer
 
 
 class Grid:
+    """Grid class
+    It stores the map of the game. They are all GridObject instances"""
+
     def __init__(self, window):
         self.data = {}
         self.window = window
@@ -18,11 +21,13 @@ class Grid:
         self.all_timers = []
 
     def add_element(self, position, element):
+        """Add an element to the grid"""
         if not isinstance(element, GridObject):
             raise TypeError('Element must be a GridObject')
         self.to_add_before_reload.append((tuple(position), element))
 
     def move_element(self, position, element, new_pos):
+        """Move an element"""
         position = tuple(position)
         if position not in self.data or self.data[position] != element:
             raise TypeError(f'{ position } is empty or is not { element }')
@@ -31,15 +36,20 @@ class Grid:
         self.reload()
 
     def clear_position(self, position):
+        """Clear a position
+        If there is nothing, do nothing"""
         position = tuple(position)
         if position in self.data:
             self.to_remove_before_reload.append(position)
 
     def clear_positions(self, *positions):
-       for pos in positions:
+        """Clear a list of positions"""
+        for pos in positions:
            self.clear_position(pos)
 
     def get_element(self, position):
+        """Get a GridObject
+        Return None if there is nothing"""
         position = tuple(position)
         if position in self.data:
             return self.data[position]
@@ -47,12 +57,16 @@ class Grid:
             return None
 
     def cancel_timers(self):
+        """Cancel all timers
+        Used to prevent errors when the game is exited"""
         for t in self.all_timers:
             t.cancel()
 
     def reload(self):
-        self.window.fill(constants.background_color)
+        """Reload the grid
+        Really change self.data only here"""
 
+        # Remove and add elements to self.data
         for pos in self.to_remove_before_reload:
             del self.data[pos]
         self.to_remove_before_reload = []
@@ -60,11 +74,15 @@ class Grid:
             self.data[el[0]] = el[1]
         self.to_add_before_reload = []
 
+        # Fill the window and call display for each element
+        self.window.fill(constants.background_color)
         for i in self.data.values():
             i.display()
 
 
 class Level:
+    """Level class
+    It creates the grid objects"""
     def __init__(self, window, grid, file):
         self.window = window
         self.grid = grid
@@ -79,10 +97,18 @@ class Level:
             self.level_grid = [ list(l) for l in f.read().split('\n') ]
 
     def render(self):
+        """Render level
+        Level are text files
+        A p represents a player
+        # a wall
+        : a wall which can be destroyed with a bomb
+        g is the goal
+        r is a random robot"""
+
         matching_dict = {
             'p': ('players', Player),
             '#': ('walls', Wall),
-            ':': ('destroyable_walls', DestroyableWall),
+            ':': ('destroyable_walls', DestructibleWall),
             'g': ('goals', Goal),
             'r': ('random_robots', RandomRobot)
         }
@@ -95,8 +121,11 @@ class Level:
 
 
 class GridObject:
+    """GridObject class
+    It is the class of any object in the grid"""
     def __init__(self, window, grid, pos):
         el = grid.get_element(pos)
+        # Create a GridObject where there is already a Wall is impossible
         if isinstance(el, Wall) and not el.deletable:
             self.accepted = False
             return
@@ -104,6 +133,7 @@ class GridObject:
             self.accepted = True
         if el and not isinstance(el, Wall):
             el.delete()
+
         self.image = pygame.image.load(self.get_image())
         grid.add_element(pos, self)
         self.grid = grid
@@ -117,6 +147,7 @@ class GridObject:
         self.deletable = True
 
     def display(self):
+        """Display self"""
         self.window.blit(self.image, self.rect)
 
     def delete(self):
@@ -124,6 +155,8 @@ class GridObject:
 
 
 class Goal(GridObject):
+    """Goal class
+    It is the goal of the game, where player must go"""
     def __init__(self, window, grid, pos):
         super().__init__(window, grid, pos)
         self.deletable = False
@@ -133,13 +166,19 @@ class Goal(GridObject):
 
 
 class Player(GridObject):
+    """Player class
+    Controlled with the keys, space to put a bomb"""
     def __init__(self, window, grid, pos=[0, 0]):
         super().__init__(window, grid, pos)
         self.hp = constants.default_hp
         self.continue_ = True
         self.bombpos = None
+        self.deletable = False
 
     def move(self, move_x, move_y):
+        """Move player
+        Called when arrows keys are pressed"""
+        # Verify player can go there
         if (self.gridpos[0] + move_x < 0 or
             self.gridpos[1] + move_y < 0 or
             (self.gridpos[0] + move_x) * constants.sprite_size >= constants.dimensions[0] or
@@ -160,23 +199,31 @@ class Player(GridObject):
         self.rect.move_ip(move_x * constants.sprite_size, move_y * constants.sprite_size)
         self.grid.move_element(self.gridpos, self, new_pos)
         self.gridpos = new_pos
+
+        # Put a bomb if needed
         if self.bombpos:
             b = Bomb(self.window, self.grid, self.bombpos)
             b.start_timer()
             self.bombpos = None
 
-    def set_bomb(self):
+    def put_bomb(self):
+        """Put a bomb
+        Called when pressing space. The bomb will really be created when player
+        will move"""
         self.bombpos = tuple(self.gridpos)
 
     def get_image(self):
         return constants.player_image
 
     def attack(self, force=1):
+        """Remove force hp
+        By default, force is one"""
         self.hp -= force
         if self.hp < 1:
             self.game_over()
 
     def game_over(self):
+        """When called show the constants.game_over_image"""
         self.grid.cancel_timers()
         self.grid.data = {}
         self.grid.reload()
@@ -185,22 +232,24 @@ class Player(GridObject):
         self.window.blit(pygame.image.load(constants.game_over_image), [0, 181])
 
     def on_explode(self):
+        """Called when player explodes"""
         self.game_over()
 
 
 class Bomb(GridObject):
-    def __init__(self, window, grid, pos):
-        super().__init__(window, grid, pos)
-
+    """Bomb class
+    Created by player"""
     def get_image(self):
         return constants.bomb_image
 
     def start_timer(self):
+        """Start bomb timer"""
         timer = Timer(constants.bomb_explosion_delay, self.explode)
         self.grid.all_timers.append(timer)
         timer.start()
 
     def explode(self):
+        """Explode"""
         directions = [
             lambda i: [self.gridpos[0] + i, self.gridpos[1]],
             lambda i: [self.gridpos[0] - i, self.gridpos[1]],
@@ -226,10 +275,12 @@ class Bomb(GridObject):
 
 
 class Fire(GridObject):
+    """Fire class"""
     def __init__(self, window, grid, pos):
         el = grid.get_element(pos)
         if el and el.deletable == False:
             if hasattr(el, 'on_explode'):
+                # Call el.on_explode
                 el.on_explode()
         else:
             super().__init__(window, grid, pos)
@@ -246,6 +297,8 @@ class Fire(GridObject):
 
 
 class Wall(GridObject):
+    """Wall class
+    These ones are indestructible"""
     def __init__(self, window, grid, pos):
         super().__init__(window, grid, pos)
         self.deletable = False
@@ -254,7 +307,9 @@ class Wall(GridObject):
         return constants.wall_image
 
 
-class DestroyableWall(Wall):
+class DestructibleWall(Wall):
+    """DestrucibleWall class
+    These walls are destructible"""
     def __init__(self, window, grid, pos):
         super().__init__(window, grid, pos)
         self.deletable = True
@@ -264,6 +319,7 @@ class DestroyableWall(Wall):
 
 
 class Robot(GridObject):
+    """Robot class"""
     def __init__(self, window, grid, pos):
         super().__init__(window, grid, pos)
         self.attacks = True
@@ -276,6 +332,7 @@ class Robot(GridObject):
         return constants.robot_image
     
     def move(self):
+        """Move robot"""
         possible_places = []
         for p in [[self.gridpos[0] + 1, self.gridpos[1]],
             [self.gridpos[0] - 1, self.gridpos[1]],
@@ -307,5 +364,7 @@ class Robot(GridObject):
 
 
 class RandomRobot(Robot):
+    """RandomRobot class
+    It moves randomly"""
     def choose_position(self, possible_places):
         return random.choice(possible_places)
