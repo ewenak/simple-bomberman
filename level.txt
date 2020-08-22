@@ -1,15 +1,15 @@
-a  bc   b c    
- bcb bbcb bbbbc
- c        b    
-bbbbcbbbbbbb bb
-  cb   c c   b 
- b b b b bbbbb 
-  cbbbcb b     
-cb b  b  bbbcbb
- b b  b bbbbcbb
- b b  b b      
- b c  c b      
- c bbbbbbbbbbbc
- b   b c      c
- bbb bbbbbbbbbb
-   b c       cd
+p  #:   # :    
+ #:#r##:# ####:
+ :        #    
+####:####### ##
+  :#   : :   #g
+ # # # # ##### 
+  :###:# #     
+:# #  #  ###:##
+ # #  # ####:##
+ # #  # #      
+ # :  : #      
+ : ###########:
+ #   # :      :
+ ### ####:#####
+   # :       : 

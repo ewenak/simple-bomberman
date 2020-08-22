@@ -5,6 +5,7 @@ import pygame
 
 import constants
 
+import random
 from threading import Timer
 
 
@@ -72,16 +73,18 @@ class Level:
         self.walls = []
         self.destroyable_walls = []
         self.goals = []
+        self.random_robots = []
 
         with open(file) as f:
             self.level_grid = [ list(l) for l in f.read().split('\n') ]
 
     def render(self):
         matching_dict = {
-            'a': ('players', Player),
-            'b': ('walls', Wall),
-            'c': ('destroyable_walls', DestroyableWall),
-            'd': ('goals', Goal),
+            'p': ('players', Player),
+            '#': ('walls', Wall),
+            ':': ('destroyable_walls', DestroyableWall),
+            'g': ('goals', Goal),
+            'r': ('random_robots', RandomRobot)
         }
         for l in range(0, 15):
             for c in range(0, 15):
@@ -132,6 +135,7 @@ class Goal(GridObject):
 class Player(GridObject):
     def __init__(self, window, grid, pos=[0, 0]):
         super().__init__(window, grid, pos)
+        self.hp = constants.default_hp
         self.continue_ = True
         self.bombpos = None
 
@@ -167,13 +171,21 @@ class Player(GridObject):
     def get_image(self):
         return constants.player_image
 
-    def on_explode(self):
+    def attack(self, force=1):
+        self.hp -= force
+        if self.hp < 1:
+            self.game_over()
+
+    def game_over(self):
         self.grid.cancel_timers()
         self.grid.data = {}
         self.grid.reload()
         self.continue_ = False
         self.window.fill(constants.background_color)
         self.window.blit(pygame.image.load(constants.game_over_image), [0, 181])
+
+    def on_explode(self):
+        self.game_over()
 
 
 class Bomb(GridObject):
@@ -249,3 +261,51 @@ class DestroyableWall(Wall):
     
     def get_image(self):
         return constants.destroyable_wall_image
+
+
+class Robot(GridObject):
+    def __init__(self, window, grid, pos):
+        super().__init__(window, grid, pos)
+        self.attacks = True
+        self.move_delay = self.get_move_delay()
+        self.timer = Timer(self.move_delay, self.move)
+        self.grid.all_timers.append(self.timer)
+        self.timer.start()
+
+    def get_image(self):
+        return constants.robot_image
+    
+    def move(self):
+        possible_places = []
+        for p in [[self.gridpos[0] + 1, self.gridpos[1]],
+            [self.gridpos[0] - 1, self.gridpos[1]],
+            [self.gridpos[0], self.gridpos[1] + 1],
+            [self.gridpos[0], self.gridpos[1] - 1]]:
+            el = self.grid.get_element(p)
+            if isinstance(el, Player) and self.attacks:
+                el.attack()
+            elif (el is None and p[0] >= 0 and p[1] >= 0 and
+                p[0] * constants.sprite_size < constants.dimensions[0] and 
+                p[1] * constants.sprite_size < constants.dimensions[1]):
+                possible_places.append(p)
+
+        if len(possible_places) > 0:
+            new_gridpos = self.choose_position(possible_places)
+            self.rect = pygame.Rect(new_gridpos[0] * constants.sprite_size, new_gridpos[1] * constants.sprite_size, 50, 50)
+            self.grid.move_element(self.gridpos, self, new_gridpos)
+            self.gridpos = new_gridpos
+
+        self.timer = Timer(self.move_delay, self.move)
+        self.grid.all_timers.append(self.timer)
+        self.timer.start()
+
+    def get_move_delay(self):
+        return constants.robot_move_delay
+
+    def delete(self):
+        self.timer.cancel()
+
+
+class RandomRobot(Robot):
+    def choose_position(self, possible_places):
+        return random.choice(possible_places)
