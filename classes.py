@@ -92,6 +92,7 @@ class Level:
         self.destroyable_walls = []
         self.goals = []
         self.random_robots = []
+        self.orientation_robots = []
 
         with open(file) as f:
             self.level_grid = [ list(l) for l in f.read().split('\n') ]
@@ -103,14 +104,16 @@ class Level:
         # a wall
         : a wall which can be destroyed with a bomb
         g is the goal
-        r is a random robot"""
+        r is a random robot
+        o is an orientation robot"""
 
         matching_dict = {
             'p': ('players', Player),
             '#': ('walls', Wall),
             ':': ('destroyable_walls', DestructibleWall),
             'g': ('goals', Goal),
-            'r': ('random_robots', RandomRobot)
+            'r': ('random_robots', RandomRobot),
+            'o': ('orientation_robots', OrientationRobot),
         }
         for l in range(0, 15):
             for c in range(0, 15):
@@ -118,6 +121,13 @@ class Level:
                 class_classname = matching_dict.get(cell)
                 if class_classname is not None:
                     getattr(self, class_classname[0]).append(class_classname[1](self.window, self.grid, [c, l]))
+
+        if len(self.players) > 1:
+            for r in self.orientation_robots:
+                r.player = random.choice(self.players)
+        else:
+            for r in self.orientation_robots:
+                r.player = self.players[0]
 
 
 class GridObject:
@@ -368,3 +378,18 @@ class RandomRobot(Robot):
     It moves randomly"""
     def choose_position(self, possible_places):
         return random.choice(possible_places)
+
+
+class OrientationRobot(Robot):
+    """OrientationRobot class
+    It moves in the player direction"""
+    def __init__(self, window, grid, pos, player=None):
+        super().__init__(window, grid, pos)
+        self.player = player
+
+    def choose_position(self, positions):
+        player_pos = self.player.gridpos
+        def distance(pos):
+            return (pos[0] - player_pos[0]) ** 2 + (pos[1] - player_pos[1]) ** 2
+
+        return sorted(positions, key=distance)[0]
