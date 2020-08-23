@@ -76,7 +76,7 @@ class Grid:
 
         # Fill the window and call display for each element
         self.window.fill(constants.background_color)
-        for i in self.data.values():
+        for i in list(self.data.values()):
             i.display()
 
 
@@ -93,6 +93,7 @@ class Level:
         self.goals = []
         self.random_robots = []
         self.orientation_robots = []
+        self.timid_robots = []
 
         with open(file) as f:
             self.level_grid = [ list(l) for l in f.read().split('\n') ]
@@ -105,7 +106,8 @@ class Level:
         : a wall which can be destroyed with a bomb
         g is the goal
         r is a random robot
-        o is an orientation robot"""
+        o is an orientation robot
+        t is a timid robot"""
 
         matching_dict = {
             'p': ('players', Player),
@@ -114,6 +116,7 @@ class Level:
             'g': ('goals', Goal),
             'r': ('random_robots', RandomRobot),
             'o': ('orientation_robots', OrientationRobot),
+            't': ('timid_robots', TimidRobot)
         }
         for l in range(0, 15):
             for c in range(0, 15):
@@ -123,10 +126,10 @@ class Level:
                     getattr(self, class_classname[0]).append(class_classname[1](self.window, self.grid, [c, l]))
 
         if len(self.players) > 1:
-            for r in self.orientation_robots:
+            for r in self.orientation_robots + self.timid_robots:
                 r.player = random.choice(self.players)
         else:
-            for r in self.orientation_robots:
+            for r in self.orientation_robots + self.timid_robots:
                 r.player = self.players[0]
 
 
@@ -393,3 +396,18 @@ class OrientationRobot(Robot):
             return (pos[0] - player_pos[0]) ** 2 + (pos[1] - player_pos[1]) ** 2
 
         return sorted(positions, key=distance)[0]
+
+
+class TimidRobot(Robot):
+    """TimidRobot class
+    It fears player"""
+    def __init__(self, window, grid, pos, player=None):
+        super().__init__(window, grid, pos)
+        self.player = player
+    
+    def choose_position(self, positions):
+        player_pos = self.player.gridpos
+        def distance(pos):
+            return (pos[0] - player_pos[0]) ** 2 + (pos[1] - player_pos[1]) ** 2
+
+        return sorted(positions, key=distance)[-1]
