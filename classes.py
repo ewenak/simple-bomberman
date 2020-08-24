@@ -5,8 +5,13 @@ import pygame
 
 import constants
 
+import json
 import random
 from threading import Timer
+
+
+class LevelError(Exception):
+    pass
 
 
 class Grid:
@@ -91,46 +96,57 @@ class Level:
         self.walls = []
         self.destroyable_walls = []
         self.goals = []
-        self.random_robots = []
-        self.orientation_robots = []
-        self.timid_robots = []
 
         with open(file) as f:
-            self.level_grid = [ list(l) for l in f.read().split('\n') ]
+            level = json.loads(f.read())
+            self.level_map = level['map']
+            if 'robots' in level:
+                self.robots_data = level['robots']
+            else:
+                self.robots_data = None
 
     def render(self):
         """Render level
         Level are text files
-        A p represents a player
+        . represents the start point of a player
         # a wall
         : a wall which can be destroyed with a bomb
-        g is the goal
-        r is a random robot
-        o is an orientation robot
-        t is a timid robot"""
+        + is the goal
+        Robots are represented by letters which are keys of the 'robots' """
 
         matching_dict = {
-            'p': ('players', Player),
+            '.': ('players', Player),
             '#': ('walls', Wall),
             ':': ('destroyable_walls', DestructibleWall),
-            'g': ('goals', Goal),
-            'r': ('random_robots', RandomRobot),
-            'o': ('orientation_robots', OrientationRobot),
-            't': ('timid_robots', TimidRobot)
+            '+': ('goals', Goal),
         }
+        robots_positions = []
         for l in range(0, 15):
             for c in range(0, 15):
-                cell = self.level_grid[l][c]
-                class_classname = matching_dict.get(cell)
-                if class_classname is not None:
-                    getattr(self, class_classname[0]).append(class_classname[1](self.window, self.grid, [c, l]))
+                cell = self.level_map[l][c]
+                if cell in list('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'):
+                    robots_positions.append([cell, (c, l)])
+                else:
+                    class_classname = matching_dict.get(cell)
+                    if class_classname is not None:
+                        getattr(self, class_classname[0]).append(class_classname[1](self.window, self.grid, [c, l]))
 
-        if len(self.players) > 1:
-            for r in self.orientation_robots + self.timid_robots:
-                r.player = random.choice(self.players)
-        else:
-            for r in self.orientation_robots + self.timid_robots:
-                r.player = self.players[0]
+        robot_classes = {
+            'orientation': OrientationRobot,
+            'random': RandomRobot,
+            'timid': TimidRobot,
+        }
+        for r in robots_positions:
+            robot_data = self.robots_data.get(r[0])
+            if robot_data is None:
+                raise LevelError(f'Robot { r[0] } (at pos { r[1] }) is not in robots\' data')
+            else:
+                if not 'type' in robot_data:
+                    raise LevelError(f'No type in { r[0] } data')
+                else:
+                    robot = robot_classes[robot_data['type']](self.window, self.grid, r[1])
+                    if isinstance(robot, (OrientationRobot, TimidRobot)):
+                        robot.player = random.choice(self.players)
 
 
 class GridObject:

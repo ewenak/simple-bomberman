@@ -18,7 +18,7 @@ pygame.time.Clock().tick(30)
 
 grid = classes.Grid(window)
 
-level = classes.Level(window, grid, 'level.txt')
+level = classes.Level(window, grid, 'level.json')
 level.render()
 player = level.players[0]
 
