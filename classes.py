@@ -136,7 +136,9 @@ class Level:
             'random': RandomRobot,
             'timid': TimidRobot,
             'path': PathRobot,
+            'randompath': RandomPathRobot,
         }
+        random_path_robot = []
         for r in robots_positions:
             robot_data = self.robots_data.get(r[0])
             if robot_data is None:
@@ -146,10 +148,16 @@ class Level:
                     raise LevelError(f'No type in { r[0] } data')
                 else:
                     robot = robot_classes[robot_data['type']](self.window, self.grid, r[1])
-                    if isinstance(robot, (OrientationRobot, TimidRobot)):
+                    if robot_data['type'] in ['orientation', 'timid']:
                         robot.player = random.choice(self.players)
-                    elif isinstance(robot, PathRobot):
+                    elif robot_data['type'] == 'path':
                         robot.path = robot_data['path']
+                    elif robot_data['type'] == 'randompath':
+                        random_path_robot.append(robot)
+
+        self.grid.reload()
+        for r in random_path_robot:
+            r.create_path()
 
 
 class GridObject:
@@ -442,7 +450,7 @@ class PathRobot(Robot):
         self.path = path
 
     def choose_position(self, possible_places):
-        if self.gridpos in self.path:
+        if list(self.gridpos) in self.path:
             current_pos_index = self.path.index(list(self.gridpos))
             next_pos_index = current_pos_index + self.index_change
             if next_pos_index == len(self.path) or next_pos_index < 0:
@@ -461,3 +469,31 @@ class PathRobot(Robot):
                 return (pos[0] - self.path[0][0]) ** 2 + (pos[1] - self.path[0][1]) ** 2
 
             return sorted(possible_places, key=distance)[0]
+
+
+class RandomPathRobot(PathRobot):
+    def __init__(self, window, grid, pos):
+        super().__init__(window, grid, pos)
+
+    def create_path(self):
+        creating_path_pos = self.gridpos
+        self.path = [list(self.gridpos)]
+        for i in range(random.randint(2, 10)):
+            possible_places = []
+            for p in [[creating_path_pos[0] + 1, creating_path_pos[1]],
+                [creating_path_pos[0] - 1, creating_path_pos[1]],
+                [creating_path_pos[0], creating_path_pos[1] + 1],
+                [creating_path_pos[0], creating_path_pos[1] - 1]]:
+                el = self.grid.get_element(p)
+                if (el is None and p[0] >= 0 and p[1] >= 0 and
+                    p[0] * constants.sprite_size < constants.dimensions[0] and 
+                    p[1] * constants.sprite_size < constants.dimensions[1]):
+                    possible_places.append(p)
+
+            possible_places_not_in_path = [ p for p in possible_places if p not in self.path ]
+            if len(possible_places_not_in_path) == 0:
+                break
+            else:
+                creating_path_pos = random.choice(possible_places_not_in_path)
+                self.path.append(list(creating_path_pos))
+        print(self.path)
