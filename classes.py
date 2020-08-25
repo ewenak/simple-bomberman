@@ -73,7 +73,9 @@ class Grid:
 
         # Remove and add elements to self.data
         for pos in self.to_remove_before_reload:
-            del self.data[pos]
+            # Maybe it was deleted before
+            if pos in self.data:
+                del self.data[pos]
         self.to_remove_before_reload = []
         for el in self.to_add_before_reload:
             self.data[el[0]] = el[1]
@@ -279,6 +281,11 @@ class Player(GridObject):
 class Bomb(GridObject):
     """Bomb class
     Created by player"""
+    def __init__(self, window, grid, pos):
+        super().__init__(window, grid, pos)
+        self.deletable = False
+        self.exploded = False
+
     def get_image(self):
         return constants.bomb_image
 
@@ -290,28 +297,33 @@ class Bomb(GridObject):
 
     def explode(self):
         """Explode"""
-        directions = [
-            lambda i: [self.gridpos[0] + i, self.gridpos[1]],
-            lambda i: [self.gridpos[0] - i, self.gridpos[1]],
-            lambda i: [self.gridpos[0], self.gridpos[1] + i],
-            lambda i: [self.gridpos[0], self.gridpos[1] - i]
-        ]
-        for d in directions:
-            for i in range(1, constants.bomb_explosion_scope):
-                p = d(i)
-                el = self.grid.get_element(p)
-                if isinstance(el, Wall):
-                    if el.deletable:
+        if not self.exploded:
+            self.exploded = True
+            directions = [
+                lambda i: [self.gridpos[0] + i, self.gridpos[1]],
+                lambda i: [self.gridpos[0] - i, self.gridpos[1]],
+                lambda i: [self.gridpos[0], self.gridpos[1] + i],
+                lambda i: [self.gridpos[0], self.gridpos[1] - i]
+            ]
+            for d in directions:
+                for i in range(1, constants.bomb_explosion_scope):
+                    p = d(i)
+                    el = self.grid.get_element(p)
+                    if isinstance(el, Wall):
+                        if el.deletable:
+                            Fire(self.window, self.grid, p)
+                        break
+                    else:
                         Fire(self.window, self.grid, p)
-                    break
-                else:
-                    Fire(self.window, self.grid, p)
-        timer = Timer(constants.bomb_explosion_duration, self.delete)
-        self.grid.all_timers.append(timer)
-        timer.start()
+            timer = Timer(constants.bomb_explosion_duration, self.delete)
+            self.grid.all_timers.append(timer)
+            timer.start()
 
     def delete(self):
         self.grid.clear_position(self.gridpos)
+
+    def on_explode(self):
+        self.explode()
 
 
 class Fire(GridObject):
@@ -325,9 +337,9 @@ class Fire(GridObject):
         else:
             super().__init__(window, grid, pos)
             if self.accepted:
-                timer = Timer(constants.bomb_explosion_duration, self.delete)
-                grid.all_timers.append(timer)
-                timer.start()
+                self.timer = Timer(constants.bomb_explosion_duration, self.delete)
+                grid.all_timers.append(self.timer)
+                self.timer.start()
 
     def get_image(self):
         return constants.fire_image
