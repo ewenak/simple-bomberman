@@ -135,6 +135,7 @@ class Level:
             'orientation': OrientationRobot,
             'random': RandomRobot,
             'timid': TimidRobot,
+            'path': PathRobot,
         }
         for r in robots_positions:
             robot_data = self.robots_data.get(r[0])
@@ -147,6 +148,8 @@ class Level:
                     robot = robot_classes[robot_data['type']](self.window, self.grid, r[1])
                     if isinstance(robot, (OrientationRobot, TimidRobot)):
                         robot.player = random.choice(self.players)
+                    elif isinstance(robot, PathRobot):
+                        robot.path = robot_data['path']
 
 
 class GridObject:
@@ -427,3 +430,34 @@ class TimidRobot(Robot):
             return (pos[0] - player_pos[0]) ** 2 + (pos[1] - player_pos[1]) ** 2
 
         return sorted(positions, key=distance)[-1]
+
+
+class PathRobot(Robot):
+    """Path robot
+    it follows a path"""
+    def __init__(self, window, grid, pos, path: list=None):
+        super().__init__(window, grid, pos)
+        self.last_pos = None
+        self.index_change = 1
+        self.path = path
+
+    def choose_position(self, possible_places):
+        if self.gridpos in self.path:
+            current_pos_index = self.path.index(list(self.gridpos))
+            next_pos_index = current_pos_index + self.index_change
+            if next_pos_index == len(self.path) or next_pos_index < 0:
+                next_pos_index -= self.index_change * 2
+                self.index_change = 0 - self.index_change
+            next_pos = self.path[next_pos_index]
+            if not next_pos in possible_places:
+                if self.last_pos in possible_places:
+                    return self.last_pos
+                else:
+                    return self.gridpos
+            else:
+                return next_pos
+        else:
+            def distance(pos):
+                return (pos[0] - self.path[0][0]) ** 2 + (pos[1] - self.path[0][1]) ** 2
+
+            return sorted(possible_places, key=distance)[0]
