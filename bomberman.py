@@ -20,7 +20,7 @@ grid = classes.Grid(window)
 
 level = classes.Level(window, grid, 'level.json')
 level.render()
-player = level.players[0]
+players = level.players
 
 pygame.key.set_repeat(400, 30)
 
@@ -34,21 +34,36 @@ while continue_:
             grid.cancel_timers()
             pygame.quit()
             break
-        elif event.type == l.KEYDOWN and player.continue_:
+        elif event.type == l.KEYDOWN and all([ p.continue_ for p in players]):
             if event.key == l.K_RIGHT:
-                player.move(1, 0)
+                players[0].move(1, 0)
+            elif event.key == l.K_d:
+                if len(players) > 1:
+                    players[1].move(1, 0)
             elif event.key == l.K_LEFT:
-                player.move(-1, 0)
+                players[0].move(-1, 0)
+            elif event.key == l.K_a:
+                if len(players) > 1:
+                    players[1].move(-1, 0)
             elif event.key == l.K_UP:
-                player.move(0, -1)
+                players[0].move(0, -1)
+            elif event.key == l.K_w:
+                if len(players) > 1:
+                    players[1].move(0, -1)
             elif event.key == l.K_DOWN:
-                player.move(0, 1)
+                players[0].move(0, 1)
+            elif event.key == l.K_s:
+                if len(players) > 1:
+                    players[1].move(0, 1)
             elif event.key == l.K_SPACE:
-                player.put_bomb()
+                players[0].put_bomb()
+            elif event.key == l.K_x:
+                if len(players) > 1:
+                    players[1].put_bomb()
             elif event.key == l.K_p:
                 import pdb; pdb.set_trace()
-    if continue_ and player.continue_:
+    if continue_ and all([ p.continue_ for p in players]):
         grid.reload()
-    elif continue_ and not player.continue_:
+    elif continue_ and not all([ p.continue_ for p in players]):
         window.fill(constants.background_color)
         window.blit(pygame.image.load(constants.game_over_image), [0, 181])

@@ -508,4 +508,3 @@ class RandomPathRobot(PathRobot):
             else:
                 creating_path_pos = random.choice(possible_places_not_in_path)
                 self.path.append(list(creating_path_pos))
-        print(self.path)
