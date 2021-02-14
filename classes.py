@@ -9,6 +9,9 @@ import json
 import random
 from threading import Timer
 
+import display
+
+GridObject = display.GridObject
 
 class LevelError(Exception):
     pass
@@ -50,7 +53,7 @@ class Grid:
     def clear_positions(self, *positions):
         """Clear a list of positions"""
         for pos in positions:
-           self.clear_position(pos)
+            self.clear_position(pos)
 
     def get_element(self, position):
         """Get a GridObject
@@ -146,7 +149,7 @@ class Level:
             if robot_data is None:
                 raise LevelError(f'Robot { r[0] } (at pos { r[1] }) is not in robots\' data')
             else:
-                if not 'type' in robot_data:
+                if 'type' not in robot_data:
                     raise LevelError(f'No type in { r[0] } data')
                 else:
                     robot = robot_classes[robot_data['type']](self.window, self.grid, r[1])
@@ -160,40 +163,6 @@ class Level:
         self.grid.reload()
         for r in random_path_robot:
             r.create_path()
-
-
-class GridObject:
-    """GridObject class
-    It is the class of any object in the grid"""
-    def __init__(self, window, grid, pos):
-        el = grid.get_element(pos)
-        # Create a GridObject where there is already a Wall is impossible
-        if isinstance(el, Wall) and not el.deletable:
-            self.accepted = False
-            return
-        else:
-            self.accepted = True
-        if el and not isinstance(el, Wall):
-            el.delete()
-
-        self.image = pygame.image.load(self.get_image())
-        grid.add_element(pos, self)
-        self.grid = grid
-        self.gridpos = pos
-        pos = [ p * constants.sprite_size for p in pos ]
-        self.pos = pos
-        self.rect = self.image.get_rect()
-        self.rect.move_ip(*pos)
-        self.window = window
-        window.blit(self.image, self.rect)
-        self.deletable = True
-
-    def display(self):
-        """Display self"""
-        self.window.blit(self.image, self.rect)
-
-    def delete(self):
-        pass
 
 
 class Goal(GridObject):
@@ -221,15 +190,14 @@ class Player(GridObject):
         """Move player
         Called when arrows keys are pressed"""
         # Verify player can go there
-        if (self.gridpos[0] + move_x < 0 or
-            self.gridpos[1] + move_y < 0 or
+        if (self.gridpos[0] + move_x < 0 or self.gridpos[1] + move_y < 0 or
             (self.gridpos[0] + move_x) * constants.sprite_size >= constants.dimensions[0] or
             (self.gridpos[1] + move_y) * constants.sprite_size >= constants.dimensions[1]):
             return
         new_pos = [self.gridpos[0] + move_x, self.gridpos[1] + move_y]
         el = self.grid.get_element(new_pos)
         if isinstance(el, Goal):
-            self.rect.move_ip(move_x * constants.sprite_size, move_y * constants.sprite_size)
+            self.move_obj(move_x * constants.sprite_size, move_y * constants.sprite_size)
             self.display()
             return
         elif isinstance(el, Fire):
@@ -238,7 +206,7 @@ class Player(GridObject):
         elif el is not None:
             return
 
-        self.rect.move_ip(move_x * constants.sprite_size, move_y * constants.sprite_size)
+        self.move_obj(move_x * constants.sprite_size, move_y * constants.sprite_size)
         self.grid.move_element(self.gridpos, self, new_pos)
         self.gridpos = new_pos
 
@@ -262,20 +230,11 @@ class Player(GridObject):
         By default, force is one"""
         self.hp -= force
         if self.hp < 1:
-            self.game_over()
-
-    def game_over(self):
-        """When called show the constants.game_over_image"""
-        self.grid.cancel_timers()
-        self.grid.data = {}
-        self.grid.reload()
-        self.continue_ = False
-        self.window.fill(constants.background_color)
-        self.window.blit(pygame.image.load(constants.game_over_image), [0, 181])
+            display.game_over(self.window, self.grid, self)
 
     def on_explode(self):
         """Called when player explodes"""
-        self.game_over()
+        display.game_over(self.window, self.grid, self)
 
 
 class Bomb(GridObject):
@@ -330,7 +289,7 @@ class Fire(GridObject):
     """Fire class"""
     def __init__(self, window, grid, pos):
         el = grid.get_element(pos)
-        if el and el.deletable == False:
+        if el and not el.deletable:
             if hasattr(el, 'on_explode'):
                 # Call el.on_explode
                 el.on_explode()
@@ -365,7 +324,7 @@ class DestructibleWall(Wall):
     def __init__(self, window, grid, pos):
         super().__init__(window, grid, pos)
         self.deletable = True
-    
+
     def get_image(self):
         return constants.destroyable_wall_image
 
@@ -382,25 +341,26 @@ class Robot(GridObject):
 
     def get_image(self):
         return constants.robot_image
-    
+
     def move(self):
         """Move robot"""
         possible_places = []
         for p in [[self.gridpos[0] + 1, self.gridpos[1]],
-            [self.gridpos[0] - 1, self.gridpos[1]],
-            [self.gridpos[0], self.gridpos[1] + 1],
-            [self.gridpos[0], self.gridpos[1] - 1]]:
+                  [self.gridpos[0] - 1, self.gridpos[1]],
+                  [self.gridpos[0], self.gridpos[1] + 1],
+                  [self.gridpos[0], self.gridpos[1] - 1]]:
             el = self.grid.get_element(p)
             if isinstance(el, Player) and self.attacks:
                 el.attack()
             elif (el is None and p[0] >= 0 and p[1] >= 0 and
-                p[0] * constants.sprite_size < constants.dimensions[0] and 
-                p[1] * constants.sprite_size < constants.dimensions[1]):
+                  p[0] * constants.sprite_size < constants.dimensions[0] and
+                  p[1] * constants.sprite_size < constants.dimensions[1]):
                 possible_places.append(p)
 
         if len(possible_places) > 0:
             new_gridpos = self.choose_position(possible_places)
-            self.rect = pygame.Rect(new_gridpos[0] * constants.sprite_size, new_gridpos[1] * constants.sprite_size, 50, 50)
+            self.goto(new_gridpos[0] * constants.sprite_size,
+                      new_gridpos[1] * constants.sprite_size)
             self.grid.move_element(self.gridpos, self, new_gridpos)
             self.gridpos = new_gridpos
 
@@ -431,6 +391,7 @@ class OrientationRobot(Robot):
 
     def choose_position(self, positions):
         player_pos = self.player.gridpos
+
         def distance(pos):
             return (pos[0] - player_pos[0]) ** 2 + (pos[1] - player_pos[1]) ** 2
 
@@ -443,9 +404,10 @@ class TimidRobot(Robot):
     def __init__(self, window, grid, pos, player=None):
         super().__init__(window, grid, pos)
         self.player = player
-    
+
     def choose_position(self, positions):
         player_pos = self.player.gridpos
+
         def distance(pos):
             return (pos[0] - player_pos[0]) ** 2 + (pos[1] - player_pos[1]) ** 2
 
@@ -455,7 +417,7 @@ class TimidRobot(Robot):
 class PathRobot(Robot):
     """Path robot
     it follows a path"""
-    def __init__(self, window, grid, pos, path: list=None):
+    def __init__(self, window, grid, pos, path: list = None):
         super().__init__(window, grid, pos)
         self.last_pos = None
         self.index_change = 1
@@ -469,7 +431,7 @@ class PathRobot(Robot):
                 next_pos_index -= self.index_change * 2
                 self.index_change = 0 - self.index_change
             next_pos = self.path[next_pos_index]
-            if not next_pos in possible_places:
+            if next_pos not in possible_places:
                 if self.last_pos in possible_places:
                     return self.last_pos
                 else:
@@ -493,12 +455,12 @@ class RandomPathRobot(PathRobot):
         for i in range(random.randint(2, 10)):
             possible_places = []
             for p in [[creating_path_pos[0] + 1, creating_path_pos[1]],
-                [creating_path_pos[0] - 1, creating_path_pos[1]],
-                [creating_path_pos[0], creating_path_pos[1] + 1],
-                [creating_path_pos[0], creating_path_pos[1] - 1]]:
+                      [creating_path_pos[0] - 1, creating_path_pos[1]],
+                      [creating_path_pos[0], creating_path_pos[1] + 1],
+                      [creating_path_pos[0], creating_path_pos[1] - 1]]:
                 el = self.grid.get_element(p)
                 if (el is None and p[0] >= 0 and p[1] >= 0 and
-                    p[0] * constants.sprite_size < constants.dimensions[0] and 
+                    p[0] * constants.sprite_size < constants.dimensions[0] and
                     p[1] * constants.sprite_size < constants.dimensions[1]):
                     possible_places.append(p)
 
@@ -508,3 +470,5 @@ class RandomPathRobot(PathRobot):
             else:
                 creating_path_pos = random.choice(possible_places_not_in_path)
                 self.path.append(list(creating_path_pos))
+
+display.unremoveable_objects.append(Wall)

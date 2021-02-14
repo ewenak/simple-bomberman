@@ -6,6 +6,8 @@ title = 'Bomberman'
 dimensions = [750, 750]
 background_color = [128, 128, 128]
 
+level_file = 'level.json'
+
 sprite_size = 50
 
 player_image = 'images/player.png'

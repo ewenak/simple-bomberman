@@ -5,24 +5,24 @@ from pygame import locals as l
 
 import classes
 import constants
+import display
 
 # Init
 pygame.init()
-window = pygame.display.set_mode(constants.dimensions)
-window.fill(constants.background_color)
+window = display.Window()
+window.pygame_window.fill(constants.background_color)
 
 # Title
 pygame.display.set_caption(constants.title)
 
+pygame.key.set_repeat(400, 30)
 pygame.time.Clock().tick(30)
 
 grid = classes.Grid(window)
 
-level = classes.Level(window, grid, 'level.json')
+level = classes.Level(window, grid, constants.level_file)
 level.render()
 players = level.players
-
-pygame.key.set_repeat(400, 30)
 
 # Main loop
 continue_ = True
@@ -65,5 +65,5 @@ while continue_:
     if continue_ and all([ p.continue_ for p in players]):
         grid.reload()
     elif continue_ and not all([ p.continue_ for p in players]):
-        window.fill(constants.background_color)
-        window.blit(pygame.image.load(constants.game_over_image), [0, 181])
+        window.pygame_window.fill(constants.background_color)
+        window.pygame_window.blit(pygame.image.load(constants.game_over_image), [0, 181])
