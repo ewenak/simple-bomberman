@@ -3,9 +3,7 @@
 import pygame
 from pygame import locals as l
 
-import classes
-import constants
-import display
+from ... import classes, constants, display
 
 # Init
 pygame.init()

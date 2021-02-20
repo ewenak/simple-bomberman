@@ -1,17 +1,14 @@
 #! /usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import pygame
-
 import constants
 
 import json
 import random
 from threading import Timer
 
-import display
-
-GridObject = display.GridObject
+from display import game_over, GridObject
+from common import Wall
 
 class LevelError(Exception):
     pass
@@ -470,5 +467,3 @@ class RandomPathRobot(PathRobot):
             else:
                 creating_path_pos = random.choice(possible_places_not_in_path)
                 self.path.append(list(creating_path_pos))
-
-display.unremoveable_objects.append(Wall)
