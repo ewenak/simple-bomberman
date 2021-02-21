@@ -1,6 +1,5 @@
 #! /usr/bin/env python3
 
-from common import Wall
 try:
     import browser
     backend = 'brython'

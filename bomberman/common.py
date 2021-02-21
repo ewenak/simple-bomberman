@@ -1,14 +1,12 @@
 #! /usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import constants
-
 import json
 import random
 from threading import Timer
 
-from display import game_over, GridObject
-from common import Wall
+from . import constants
+from .display import game_over, GridObject
 
 class LevelError(Exception):
     pass
@@ -231,7 +229,7 @@ class Player(GridObject):
 
     def on_explode(self):
         """Called when player explodes"""
-        display.game_over(self.window, self.grid, self)
+        game_over(self.window, self.grid, self)
 
 
 class Bomb(GridObject):
@@ -241,6 +239,7 @@ class Bomb(GridObject):
         super().__init__(window, grid, pos)
         self.deletable = False
         self.exploded = False
+        self.fires = []
 
     def get_image(self):
         return constants.bomb_image
@@ -267,10 +266,10 @@ class Bomb(GridObject):
                     el = self.grid.get_element(p)
                     if isinstance(el, Wall):
                         if el.deletable:
-                            Fire(self.window, self.grid, p)
+                            self.fires.append(Fire(self.window, self.grid, p))
                         break
                     else:
-                        Fire(self.window, self.grid, p)
+                        self.fires.append(Fire(self.window, self.grid, p))
             timer = Timer(constants.bomb_explosion_duration, self.delete)
             self.grid.all_timers.append(timer)
             timer.start()
@@ -331,6 +330,7 @@ class Robot(GridObject):
     def __init__(self, window, grid, pos):
         super().__init__(window, grid, pos)
         self.attacks = True
+        self.deletable = True
         self.move_delay = self.get_move_delay()
         self.timer = Timer(self.move_delay, self.move)
         self.grid.all_timers.append(self.timer)
