@@ -62,8 +62,6 @@ def main():
                 elif event.key == l.K_p:
                     import pdb; pdb.set_trace()
 
-        if continue_ and all([ p.continue_ for p in players]):
-            grid.reload()
-        elif continue_ and not all([ p.continue_ for p in players]):
+        if continue_ and not all([ p.continue_ for p in players]):
             window.pygame_window.fill(constants.background_color)
             window.pygame_window.blit(pygame.image.load(constants.game_over_image), [0, 181])

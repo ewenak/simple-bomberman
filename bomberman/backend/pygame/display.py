@@ -8,13 +8,13 @@ class Window:
         self.pygame_window = pygame.display.set_mode(constants.dimensions)
 
     def fill(self, color):
-       self.pygame_window.fill(color) 
+       self.pygame_window.fill(color)
 
 
 class GridObject:
     """GridObject class
     It is the class of any object in the grid"""
-    def __init__(self, window, grid, pos):
+    def __init__(self, window, grid, pos, reload_grid=True):
         el = grid.get_element(pos)
         # Create a GridObject where there is already a Wall is impossible
         if el is not None and not el.deletable:
@@ -26,7 +26,6 @@ class GridObject:
             el.delete()
 
         self.image = pygame.image.load(self.get_image())
-        grid.add_element(pos, self)
         self.grid = grid
         self.gridpos = pos
         pos = [ p * constants.sprite_size for p in pos ]
@@ -36,6 +35,7 @@ class GridObject:
         self.window = window
         window.pygame_window.blit(self.image, self.rect)
         self.deletable = True
+        grid.add_element(self.gridpos, self, reload_grid)
 
     def move_obj(self, x, y):
         self.rect.move_ip(x, y)
