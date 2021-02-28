@@ -18,7 +18,7 @@ document.select('title')[0] <= constants.title
 
 grid = common.Grid(window)
 
-level = common.Level(window, grid, '../' + constants.level_file)
+level = common.Level(window, grid, constants.level_file)
 level.render()
 players = level.players
 
