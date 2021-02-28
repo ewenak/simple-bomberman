@@ -22,10 +22,6 @@ level = common.Level(window, grid, constants.level_file)
 level.render()
 players = level.players
 
-def start(e):
-    level.start()
-document['start'].bind('click', start)
-
 def keydown(event):
     print(event.key, repr(event.code), players)
     print(players[0], players[0].gridpos)

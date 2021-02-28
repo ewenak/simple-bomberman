@@ -219,11 +219,14 @@ class Player(GridObject):
         By default, force is one"""
         self.hp -= force
         if self.hp < 1:
-            display.game_over(self.window, self.grid, self)
+            game_over(self.window, self.grid, self)
 
     def on_explode(self):
         """Called when player explodes"""
-        game_over(self.window, self.grid, self)
+        # In brython version, the timers are not cancelled so the screen is
+        # redrawn when the bomb has finished to explode. So we wait before
+        # showing the "Game over!" text.
+        Timer(constants.bomb_explosion_duration, lambda: game_over(self.window, self.grid, self)).start()
 
 
 class Bomb(GridObject):

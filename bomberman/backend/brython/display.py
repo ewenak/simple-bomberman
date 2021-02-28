@@ -5,14 +5,6 @@ from bomberman import constants
 unremoveable_objects = []
 
 images = {}
-# images = { filename: html.IMG(src=filename) for filename in [constants.bomb_image,
-#                                                              constants.destroyable_wall_image,
-#                                                              constants.fire_image,
-#                                                              constants.game_over_image,
-#                                                              constants.goal_image,
-#                                                              constants.player_image,
-#                                                              constants.robot_image,
-#                                                              constants.wall_image] }
 
 
 class Window:
@@ -77,4 +69,4 @@ def game_over(window, grid, player):
     grid.reload()
     player.continue_ = False
     window.fill(constants.background_color)
-    window.ctx.drawImage(images[constants.game_over_image], 0, 181)
+    window.ctx.drawImage(html.IMG(src=constants.game_over_image), 0, constants.dimensions[1] / 2)
