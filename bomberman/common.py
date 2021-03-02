@@ -28,14 +28,15 @@ class Grid:
         if reload:
             self.reload()
 
-    def move_element(self, position, element, new_pos):
+    def move_element(self, position, element, new_pos, reload=True):
         """Move an element"""
         position = tuple(position)
         if position not in self.data or self.data[position] != element:
             raise TypeError(f'{ position } is empty or is not { element }')
         self.data[tuple(new_pos)] = element
         del self.data[position]
-        self.reload()
+        if reload:
+            self.reload()
 
     def clear_position(self, position, reload=True):
         """Clear a position
@@ -88,6 +89,7 @@ class Level:
         self.walls = []
         self.destroyable_walls = []
         self.goals = []
+        self.robots = []
 
         with open(file) as f:
             level = json.loads(f.read())
@@ -140,6 +142,7 @@ class Level:
                     raise LevelError(f'No type in { r[0] } data')
                 else:
                     robot = robot_classes[robot_data['type']](self.window, self.grid, r[1])
+                    self.robots.append(robot)
                     if robot_data['type'] in ['orientation', 'timid']:
                         robot.player = random.choice(self.players)
                     elif robot_data['type'] == 'path':
@@ -150,6 +153,25 @@ class Level:
         self.grid.reload()
         for r in random_path_robot:
             r.create_path()
+
+        self.robots_move_timer = Timer(constants.robot_move_delay, self.move_robots)
+        self.grid.all_timers.append(self.robots_move_timer)
+        self.robots_move_timer.start()
+
+    def move_robots(self):
+        i = 0
+        while i < len(self.robots):
+            r = self.robots[i]
+            if not r.exploded:
+                r.move()
+                i += 1
+            else:
+                del self.robots[i]
+
+        self.robots_move_timer = Timer(constants.robot_move_delay, self.move_robots)
+        self.grid.all_timers.append(self.robots_move_timer)
+        self.robots_move_timer.start()
+        self.grid.reload()
 
 
 class Goal(GridObject):
@@ -284,16 +306,17 @@ class Fire(GridObject):
     """Fire class"""
     def __init__(self, window, grid, pos, reload_grid=True):
         el = grid.get_element(pos)
-        if el and not el.deletable:
+        if el:
             if hasattr(el, 'on_explode'):
                 # Call el.on_explode
                 el.on_explode()
-        else:
-            super().__init__(window, grid, pos, reload_grid)
-            if self.accepted:
-                self.timer = Timer(constants.bomb_explosion_duration, self.delete)
-                grid.all_timers.append(self.timer)
-                self.timer.start()
+            if not el.deletable:
+                return
+        super().__init__(window, grid, pos, reload_grid)
+        if self.accepted:
+            self.timer = Timer(constants.bomb_explosion_duration, self.delete)
+            grid.all_timers.append(self.timer)
+            self.timer.start()
 
     def get_image(self):
         return constants.fire_image
@@ -331,10 +354,7 @@ class Robot(GridObject):
         super().__init__(window, grid, pos, reload_grid)
         self.attacks = True
         self.deletable = True
-        self.move_delay = self.get_move_delay()
-        self.timer = Timer(self.move_delay, self.move)
-        self.grid.all_timers.append(self.timer)
-        self.timer.start()
+        self.exploded = False
 
     def get_image(self):
         return constants.robot_image
@@ -356,21 +376,19 @@ class Robot(GridObject):
 
         if len(possible_places) > 0:
             new_gridpos = self.choose_position(possible_places)
+            # None means not to move
+            if new_gridpos is None:
+                return
+            if not new_gridpos in possible_places:
+                print(f'choose_position returned a value ({ new_gridpos }) that is not in possible_places ({ possible_places })')
+                return
             self.goto(new_gridpos[0] * constants.sprite_size,
                       new_gridpos[1] * constants.sprite_size)
-            self.grid.move_element(self.gridpos, self, new_gridpos)
+            self.grid.move_element(self.gridpos, self, new_gridpos, False)
             self.gridpos = new_gridpos
 
-        self.timer = Timer(self.move_delay, self.move)
-        self.grid.all_timers.append(self.timer)
-        self.timer.start()
-        self.grid.reload()
-
-    def get_move_delay(self):
-        return constants.robot_move_delay
-
     def on_explode(self):
-        self.timer.cancel()
+        self.exploded = True
 
 
 class RandomRobot(Robot):
@@ -427,14 +445,18 @@ class PathRobot(Robot):
             next_pos_index = current_pos_index + self.index_change
             if next_pos_index == len(self.path) or next_pos_index < 0:
                 next_pos_index -= self.index_change * 2
-                self.index_change = 0 - self.index_change
+                self.index_change = -self.index_change
             next_pos = self.path[next_pos_index]
             if next_pos not in possible_places:
                 if self.last_pos in possible_places:
-                    return self.last_pos
+                    next_pos = self.last_pos
+                    self.last_pos = self.gridpos
+                    return next_pos
                 else:
-                    return self.gridpos
+                    # robot can't move
+                    return None
             else:
+                self.last_pos = self.gridpos
                 return next_pos
         else:
             def distance(pos):
